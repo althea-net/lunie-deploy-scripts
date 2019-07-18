@@ -1,0 +1,14 @@
+# This is a systemd service for the gaiad cosmos server
+[Unit]
+Description=gaiad
+Requires=network.target
+
+[Service]
+Type=simple
+TimeoutStartSec=10s
+# RestartSec=10
+# Restart=on-failure
+ExecStart=/home/asoltys/.go/bin/gaiad start
+
+[Install]
+WantedBy=default.target

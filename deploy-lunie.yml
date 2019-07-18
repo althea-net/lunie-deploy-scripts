@@ -1,0 +1,10 @@
+# Sets up an Altheahoods server with node and nginx
+
+- name: Install Cosmos
+  hosts: servers
+  user: root
+  roles:
+    - install-deps
+    - setup-gaia
+      # - setup-nginx
+      #- setup-node

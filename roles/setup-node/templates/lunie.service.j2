@@ -1,0 +1,15 @@
+# This is a systemd service for the lunie node server
+[Unit]
+Description=lunie
+Requires=network.target
+After=postgresql.target
+
+[Service]
+Type=simple
+TimeoutStartSec=10s
+# RestartSec=10
+# Restart=on-failure
+ExecStart=/usr/bin/node /var/lunie/dist/index.js
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,15 @@
+# This is a systemd service for the gaiacli rest server
+[Unit]
+Description=gaiacli
+Requires=network.target
+After=gaiad.target
+
+[Service]
+Type=simple
+TimeoutStartSec=10s
+# RestartSec=10
+# Restart=on-failure
+ExecStart=gaiacli rest-server --trust-node=true --laddr tcp://0.0.0.0:9070
+
+[Install]
+WantedBy=default.target
