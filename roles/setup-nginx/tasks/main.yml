@@ -1,4 +1,8 @@
 ---
+- name: Set enforce permissive
+  shell: setenforce permissive
+  become: true
+
 - name: Template main nginx config
   template:
     src: "nginx.conf"

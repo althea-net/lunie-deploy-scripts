@@ -29,6 +29,39 @@
     update: yes
     force: yes
 
+- name: Get latest Althea genesis.json file
+  get_url:
+    url: "https://raw.githubusercontent.com/althea-net/althea-zone/master/genesis.json"
+    dest: "{{ ansible_env.HOME }}/genesis.json"
+    mode: 0755
+    force: true
+
+- name: Check for changes to the genesis file
+  command: cmp -s "{{ ansible_env.HOME }}/genesis.json {{ ansible_env.HOME }}/.gaid/config/genesis.json }}"
+  register: new_genesis
+  ignore_errors: true
+
+- name: Remove gaiad folder
+  shell: rm -rf /home/asoltys/.gaiad
+  args:
+    warn: no
+  become: true
+  when: new_genesis
+
+- name: Create config directory
+  file:
+    path: "{{ ansible_env.HOME }}/.gaiad/config"
+    state: directory
+    mode: '0755'
+  when: new_genesis
+
+- name: Install genesis file
+  copy:
+    src: "{{ ansible_env.HOME }}/genesis.json"
+    dest: "{{ ansible_env.HOME }}/.gaiad/config/genesis.json"
+    remote_src: yes
+  when: new_genesis
+
 - name: Check if gaia is installed
   command: command -v gaiad
   register: gaiad_installed
@@ -105,27 +138,4 @@
         {{ service_gaiacli_status.stderr }}
     when: service_gaiacli_status is failed
   when: not gaiad_installed
-
-- name: Get latest Althea genesis.json file
-  get_url:
-    url: "https://raw.githubusercontent.com/althea-net/althea-zone/master/genesis.json"
-    dest: "{{ ansible_env.HOME }}/genesis.json"
-    mode: 0755
-    force: true
-
-- name: Check for changes to the genesis file
-  command: cmp -s "{{ ansible_env.HOME }}/genesis.json {{ ansible_env.HOME }}/.gaid/config/genesis.json }}"
-  register: new_genesis
-  ignore_errors: true
-
-- name: Copy file with owner and permissions
-  copy:
-    src: "{{ ansible_env.HOME }}/genesis.json"
-    dest: "{{ ansible_env.HOME }}/.gaiad/config/genesis.json"
-    remote_src: yes
-  when: new_genesis
-
-- name: Reset blockchain state
-  shell: gaiad unsafe-reset-all
-  when: new_genesis
 
