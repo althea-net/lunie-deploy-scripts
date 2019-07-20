@@ -1,134 +1,131 @@
 ---
-# - name: Download go install script
-#   get_url:
-#     url: "https://raw.githubusercontent.com/canha/golang-tools-install-script/master/goinstall.sh"
-#     dest: "/home/asoltys/goinstall.sh"
-#     mode: 0755
-#     force: true
-#   become: true
-# 
-# - name: Remove go if it exists
-#   shell: "/home/asoltys/goinstall.sh --remove"
-# 
-# - name: Install go
-#   shell: "/home/asoltys/goinstall.sh"
-# 
-# - name: Clone gaia
-#   git:
-#     repo: "https://github.com/cosmos/gaia"
-#     dest: "$HOME/go/src/github.com/cosmos/gaia"
-#     update: yes
-#     force: yes
-# 
-# - name: Checkout a working commit
-#   shell: "cd $HOME/go/src/github.com/cosmos/gaia && git checkout 3d5780c"
-# 
-# - name: Install gaia
-#   shell: "cd $HOME/go/src/github.com/cosmos/gaia && make install"
-#
+- name: Download go install script
+  get_url:
+    url: "https://raw.githubusercontent.com/canha/golang-tools-install-script/master/goinstall.sh"
+    dest: "{{ ansible_env.HOME }}/goinstall.sh"
+    mode: 0755
+    force: true
+  become: true
+
+- name: Check if go is installed
+  command: command -v go
+  register: go_installed
+  ignore_errors: true
+
+- name: Install go
+  command: "{{ ansible_env.HOME }}/goinstall.sh"
+  when: not go_installed
+  
 - name: Stop gaiad
   service:
     name: gaiad
     state: stopped
   become: true
 
-- name: Remove gaiad folder
-  shell: rm -rf /home/asoltys/.gaiad
-  args:
-    warn: no
-  become: true
+- name: Clone cosmos SDK
+  git:
+    repo: "https://github.com/cosmos/cosmos-sdk"
+    dest: "{{ ansible_env.HOME }}/cosmos-sdk"
+    update: yes
+    force: yes
 
-- name: Generate genesis.json file
-  shell: "gaiad init --chain-id=mychain validator1"
+- name: Check if gaia is installed
+  command: command -v gaiad
+  register: gaiad_installed
+  ignore_errors: true
 
-- name: Install pexpect
-  pip:
-    name: pexpect
+- name: Setup gaia
+  block:
+  - name: Install gaia
+    shell: "cd {{ ansible_env.HOME }}/cosmos-sdk && git checkout v0.35.0 && make install"
 
-- name: Create a validator key
-  expect:
-    command: gaiacli keys add validator1
-    responses:
-      (?i)override: "Y"
-      (?i)passphrase: "password"
+  - name: Template gaiad service file
+    template:
+      src: "gaiad.service.j2"
+      dest: "/etc/systemd/system/gaiad.service"
+    become: true
 
-- name: Add key to accounts array
-  shell: gaiad add-genesis-account $(gaiacli keys show validator1 -a) 1000000000stake,1000000000footoken
+  - name: Set gaiad to run on startup
+    systemd:
+      daemon_reload: yes
+      name: gaiad
+      state: restarted
+      enabled: yes
+    become: true
 
-- name: Generate transaction
-  expect:
-    command: gaiad gentx --name validator1
-    responses:
-      (?i)password: "password"
+  - name: Wait for Quick crashes
+    pause:
+      seconds: 5
 
-- name: Add transactions to genesis.json file
-  shell: gaiad collect-gentxs
+  - name: Check if gaia is running
+    command: systemctl status gaiad
+    ignore_errors: yes
+    changed_when: false
+    register: service_gaiad_status
+
+  - name: Report status of gaiad
+    fail:
+      msg: |
+        Service gaiad is not running.
+        Output of `systemctl status gaiad`:
+        {{ service_gaiad_status.stdout }}
+        {{ service_gaiad_status.stderr }}
+    when: service_gaiad_status is failed
+
+  - name: Template gaiacli service file
+    template:
+      src: "gaiacli.service.j2"
+      dest: "/etc/systemd/system/gaiacli.service"
+    become: true
+
+  - name: Set gaiacli to run on startup
+    systemd:
+      daemon_reload: yes
+      name: gaiacli
+      state: restarted
+      enabled: yes
+    become: true
+
+  - name: Wait for Quick crashes
+    pause:
+      seconds: 5
+
+  - name: Check if gaiacli is running
+    command: systemctl status gaiacli
+    ignore_errors: yes
+    changed_when: false
+    register: service_gaiacli_status
+
+  - name: Report status of gaiacli
+    fail:
+      msg: |
+        Service gaiacli is not running.
+        Output of `systemctl status gaiacli`:
+        {{ service_gaiacli_status.stdout }}
+        {{ service_gaiacli_status.stderr }}
+    when: service_gaiacli_status is failed
+  when: not gaiad_installed
+
+- name: Get latest Althea genesis.json file
+  get_url:
+    url: "https://raw.githubusercontent.com/althea-net/althea-zone/master/genesis.json"
+    dest: "{{ ansible_env.HOME }}/genesis.json"
+    mode: 0755
+    force: true
+
+- name: Check for changes to the genesis file
+  command: cmp -s "{{ ansible_env.HOME }}/genesis.json {{ ansible_env.HOME }}/.gaid/config/genesis.json }}"
+  register: new_genesis
+  ignore_errors: true
+
+- name: Copy file with owner and permissions
+  copy:
+    src: "{{ ansible_env.HOME }}/genesis.json"
+    dest: "{{ ansible_env.HOME }}/.gaiad/config/genesis.json"
+    remote_src: yes
+  when: new_genesis
 
 - name: Reset blockchain state
   shell: gaiad unsafe-reset-all
+  when: new_genesis
 
-- name: Template gaiad service file
-  template:
-    src: "gaiad.service.j2"
-    dest: "/etc/systemd/system/gaiad.service"
-  become: true
-
-- name: Set gaiad to run on startup
-  systemd:
-    daemon_reload: yes
-    name: gaiad
-    state: restarted
-    enabled: yes
-  become: true
-
-- name: Wait for Quick crashes
-  pause:
-    seconds: 5
-
-- name: Check if gaia is running
-  command: systemctl status gaiad
-  ignore_errors: yes
-  changed_when: false
-  register: service_gaiad_status
-
-- name: Report status of gaiad
-  fail:
-    msg: |
-      Service gaiad is not running.
-      Output of `systemctl status gaiad`:
-      {{ service_gaiad_status.stdout }}
-      {{ service_gaiad_status.stderr }}
-  when: service_gaiad_status is failed
-
-- name: Template gaiacli service file
-  template:
-    src: "gaiacli.service.j2"
-    dest: "/etc/systemd/system/gaiacli.service"
-  become: true
-
-- name: Set gaiacli to run on startup
-  systemd:
-    daemon_reload: yes
-    name: gaiacli
-    state: restarted
-    enabled: yes
-  become: true
-
-- name: Wait for Quick crashes
-  pause:
-    seconds: 5
-
-- name: Check if gaiacli is running
-  command: systemctl status gaiacli
-  ignore_errors: yes
-  changed_when: false
-  register: service_gaiacli_status
-
-- name: Report status of gaiacli
-  fail:
-    msg: |
-      Service gaiacli is not running.
-      Output of `systemctl status gaiacli`:
-      {{ service_gaiacli_status.stdout }}
-      {{ service_gaiacli_status.stderr }}
-  when: service_gaiacli_status is failed
