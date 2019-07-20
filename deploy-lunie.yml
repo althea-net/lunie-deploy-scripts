@@ -6,5 +6,5 @@
   roles:
     - install-deps
     - setup-gaia
-      # - setup-nginx
-      #- setup-node
+    - setup-lunie
+    - setup-nginx

@@ -25,11 +25,18 @@
 # 
 # - name: Install gaia
 #   shell: "cd $HOME/go/src/github.com/cosmos/gaia && make install"
+#
+- name: Stop gaiad
+  service:
+    name: gaiad
+    state: stopped
+  become: true
 
-- name: Remove genesis.json
-  file:
-    state: absent
-    path: $HOME/.gaiad/config/genesis.json
+- name: Remove gaiad folder
+  shell: rm -rf /home/asoltys/.gaiad
+  args:
+    warn: no
+  become: true
 
 - name: Generate genesis.json file
   shell: "gaiad init --chain-id=mychain validator1"
@@ -92,6 +99,12 @@
       {{ service_gaiad_status.stdout }}
       {{ service_gaiad_status.stderr }}
   when: service_gaiad_status is failed
+
+- name: Template gaiacli service file
+  template:
+    src: "gaiacli.service.j2"
+    dest: "/etc/systemd/system/gaiacli.service"
+  become: true
 
 - name: Set gaiacli to run on startup
   systemd:

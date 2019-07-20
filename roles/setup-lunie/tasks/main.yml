@@ -1,0 +1,17 @@
+---
+- name: Template Lunie service file
+  template:
+    src: "lunie.service.j2"
+    dest: "/etc/systemd/system/lunie.service"
+  become: true
+
+
+- name: Clone lunie
+  git:
+    repo: "https://github.com/asoltys/lunie"
+    dest: "/var/lunie"
+    update: yes
+    force: yes
+
+- name: Build site
+  shell: "cd /var/lunie && npm install && STARGATE=https://stargate.coinos.io RPC=https://lunie.coinos.io:443 npm run build:ui"
