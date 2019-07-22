@@ -14,4 +14,4 @@
     force: yes
 
 - name: Build site
-  shell: "cd /var/lunie && npm install && STARGATE=https://stargate.coinos.io RPC=https://lunie.coinos.io:443 npm run build:ui"
+  shell: "cd /var/lunie && npm install && STARGATE=https://althea.zone/stargate RPC=https://althea.zone:443 npm run build:ui"

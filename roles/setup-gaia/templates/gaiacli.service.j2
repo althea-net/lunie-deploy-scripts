@@ -9,7 +9,7 @@ Type=simple
 TimeoutStartSec=10s
 # RestartSec=10
 # Restart=on-failure
-ExecStart=/home/asoltys/go/bin/gaiacli rest-server --trust-node=true --laddr tcp://0.0.0.0:9070 --home /home/asoltys/.gaiacli
+ExecStart={{ ansible_env.HOME }}/go/bin/gaiacli rest-server --trust-node=true --laddr tcp://0.0.0.0:9070 --home {{ ansible_env.HOME }}/.gaiacli
 
 [Install]
 WantedBy=default.target

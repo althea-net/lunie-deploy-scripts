@@ -21,6 +21,7 @@
     name: gaiad
     state: stopped
   become: true
+  ignore_errors: true
 
 - name: Clone cosmos SDK
   git:
@@ -42,7 +43,7 @@
   ignore_errors: true
 
 - name: Remove gaiad folder
-  shell: rm -rf /home/asoltys/.gaiad
+  shell: rm -rf {{ ansible_env.HOME }}.gaiad
   args:
     warn: no
   become: true
@@ -137,5 +138,4 @@
         {{ service_gaiacli_status.stdout }}
         {{ service_gaiacli_status.stderr }}
     when: service_gaiacli_status is failed
-  when: not gaiad_installed
 

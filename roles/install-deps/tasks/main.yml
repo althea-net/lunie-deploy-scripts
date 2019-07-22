@@ -22,6 +22,25 @@
   when: ansible_distribution == 'Fedora'
   become: true
 
+- name: Add epel-release repo
+  yum:
+    name: epel-release
+    state: present
+  when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+  become: true
+
+- name: Add node.js repository
+  shell: curl -sL https://rpm.nodesource.com/setup_10.x | bash -
+  args:
+    warn: no
+  when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+
+- name: Clean yum cache
+  shell: yum clean all && yum makecache fast
+  args:
+    warn: no
+  become: true
+
 - name: Install CentOS/RHEL deps
   yum:
     name: "{{centos_deps}}"

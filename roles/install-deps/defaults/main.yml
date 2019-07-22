@@ -16,6 +16,7 @@ debian_deps:
   - nodejs
 
 centos_deps:
+  - epel-release
   - git
   - make
   - gcc
