@@ -43,7 +43,7 @@
   ignore_errors: true
 
 - name: Remove gaiad folder
-  shell: rm -rf {{ ansible_env.HOME }}.gaiad
+  shell: rm -rf {{ ansible_env.HOME }}/.gaiad
   args:
     warn: no
   become: true
@@ -72,6 +72,9 @@
   block:
   - name: Install gaia
     shell: "cd {{ ansible_env.HOME }}/cosmos-sdk && git checkout v0.35.0 && make install"
+
+  - name: Strip /stargate from connect-src
+    shell: sed -i "s/althea.zone\/stargate/althea.zone/g" /var/lunie/dist/index.html
 
   - name: Template gaiad service file
     template:
@@ -105,6 +108,27 @@
         {{ service_gaiad_status.stdout }}
         {{ service_gaiad_status.stderr }}
     when: service_gaiad_status is failed
+
+  - name: Get latest Althea seeds
+    get_url:
+      url: "https://raw.githubusercontent.com/althea-net/althea-zone/master/seeds"
+      dest: "{{ ansible_env.HOME }}/seeds"
+      mode: 0755
+      force: true
+
+  - name: Add seeds to config
+    shell: sed -i "s/seeds = \"\"/seeds = \"20d682e14b3bb1f8dbdb0492ea5f401c0c088163@198.245.51.51:26656\"/g" {{ ansible_env.HOME }}/.gaiad/config/config.toml
+    args:
+      warn: no
+    when: service_gaiad_status is succeeded
+
+  - name: Restart gaiad
+    systemd:
+      daemon_reload: yes
+      name: gaiad
+      state: restarted
+      enabled: yes
+    become: true
 
   - name: Template gaiacli service file
     template:
